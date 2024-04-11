@@ -22,12 +22,12 @@ pub mod youtube {
         if is_youtube_url(url) {
             let path = "shorts/";
             let index = url.find(path);
-    
+
             if index.is_some() {
                 return url.replace(path, "watch?v=");
             }
         }
-    
+
         url.to_string()
     }
 
@@ -35,13 +35,16 @@ pub mod youtube {
         if is_youtube_url(url) {
             let parameter = "si=";
             let start_index_result = url.find(parameter);
-    
+
             if start_index_result.is_some() {
                 let start_index = start_index_result.unwrap();
                 // the '&' infront of 'si=' is assumed. thus we get rid of the '&' at the end
                 // another case: the '?' is infront of 'si='. thus we get rid of the '&' at the end
                 let end_index = super::find(url,"&", start_index).map_or(url.len(), |i| i + 1);
-                return url.get(..start_index).unwrap().to_owned() + url.get(end_index..).unwrap();
+
+                let mut result = url.to_string();
+                result.replace_range(start_index..end_index, "");
+                return result;
             }
         }
 
