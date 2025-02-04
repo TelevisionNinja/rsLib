@@ -18,11 +18,11 @@ cargo test
 ### Docker
 ```bash
 docker build -t rslib_image .
-docker run --name rslib_container rslib_image
+docker run --replace --name rslib_container rslib_image
 ```
 
 ### Podman
 ```bash
 podman build -t rslib_image .
-podman run --name rslib_container rslib_image
+podman run --replace --name rslib_container rslib_image
 ```
