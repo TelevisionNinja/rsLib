@@ -109,9 +109,11 @@ mod tests {
         assert_eq!("https://youtube.com/shorts/60gZOXu5gcQ?", youtube::remove_tracking_parameters("https://youtube.com/shorts/60gZOXu5gcQ?si=EkAu2o2eUgp4SZV-"));
         assert_eq!("https://www.youtube.com/shorts/H3O6-SHr2fc", youtube::remove_tracking_parameters("https://www.youtube.com/shorts/H3O6-SHr2fc"));
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg"));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg&", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=HCE_lFUMXNg&si=EkAu2o2eUgp4SZV-"));
 
         assert_eq!("https://youtube.com/shorts/60gZOXu5gcQ?", youtube::remove_tracking_parameters("https://youtube.com/shorts/60gZOXu5gcQ?pp=EkAu2o2eUgp4SZV-"));
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?pp=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg"));
+        assert_eq!("https://www.youtube.com/watch?v=vWLUMXNhWANg&", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=vWLUMXNhWANg&pp=ygUhamltIGdyZWVuIGFu2o2eYW4gcmFuZ2VyIGJhcmVmb290"));
 
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg&", youtube::remove_tracking_parameters("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-"));
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg&", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-&si=EkAu2o2eUgp4SZV-"));
