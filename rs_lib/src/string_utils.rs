@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 pub fn find(string: &str, substring: &str, index: usize) -> Option<usize> {
     string.get(index..)
         .and_then(|s|
@@ -45,27 +47,37 @@ pub mod youtube {
 
     pub fn remove_tracking_parameters(url: &str) -> String {
         if is_youtube_url(url) {
-            let mut result = url.to_string();
+            let mut result = String::new();
+            let url_string = url.to_string();
 
-            let parameters = [
-                "si",
-                "pp"
-            ];
+            let mut parameters = super::HashSet::new();
+            parameters.insert("si".to_string());
+            parameters.insert("pp".to_string());
 
-            for parameter in parameters {
-                let start_index_result = result.find(&(parameter.to_owned() + "="));
+            //---------------------
 
-                if start_index_result.is_some() {
-                    let start_index = start_index_result.unwrap();
-                    // the '&' infront of 'si=' is assumed. thus we get rid of the '&' at the end
-                    // another case: the '?' is infront of 'si='. thus we get rid of the '&' at the end
-                    let end_index = super::find(&result, "&", start_index).map_or(result.len(), |i| i + 1);
+            let mut first_chunk_iterator = url_string.split("?");
+            let first_chunk = first_chunk_iterator.next().unwrap();
+            let second_chunk = first_chunk_iterator.next();
 
-                    result.replace_range(start_index..end_index, "");
-                }
+            if !second_chunk.is_some() {
+                return url.to_string();
             }
 
-            return result;
+            result.push_str(first_chunk);
+            let second_chunk_unwrapped = second_chunk.unwrap();
+
+            //---------------------
+
+            let parameter_iterator = second_chunk_unwrapped.split("&");
+            let filtered_parameters = parameter_iterator.filter(|parameter| !parameters.contains(parameter.split("=").next().unwrap()));
+            let remaining_parameters = filtered_parameters.collect::<Vec<&str>>().join("&");
+
+            if !remaining_parameters.is_empty() {
+                result.push_str(&("?".to_owned() + &remaining_parameters));
+            }
+
+            return result.to_string();
         }
 
         url.to_string()
@@ -106,16 +118,16 @@ mod tests {
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::short_to_video("https://www.youtube.com/watch?v=HCE_lFUMXNg"));
 
         assert_eq!("https://youtu.be/2BO83Ig-E8E", youtube::remove_tracking_parameters("https://youtu.be/2BO83Ig-E8E"));
-        assert_eq!("https://youtube.com/shorts/60gZOXu5gcQ?", youtube::remove_tracking_parameters("https://youtube.com/shorts/60gZOXu5gcQ?si=EkAu2o2eUgp4SZV-"));
+        assert_eq!("https://youtube.com/shorts/60gZOXu5gcQ", youtube::remove_tracking_parameters("https://youtube.com/shorts/60gZOXu5gcQ?si=EkAu2o2eUgp4SZV-"));
         assert_eq!("https://www.youtube.com/shorts/H3O6-SHr2fc", youtube::remove_tracking_parameters("https://www.youtube.com/shorts/H3O6-SHr2fc"));
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg"));
-        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg&", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=HCE_lFUMXNg&si=EkAu2o2eUgp4SZV-"));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=HCE_lFUMXNg&si=EkAu2o2eUgp4SZV-"));
 
-        assert_eq!("https://youtube.com/shorts/60gZOXu5gcQ?", youtube::remove_tracking_parameters("https://youtube.com/shorts/60gZOXu5gcQ?pp=EkAu2o2eUgp4SZV-"));
+        assert_eq!("https://youtube.com/shorts/60gZOXu5gcQ", youtube::remove_tracking_parameters("https://youtube.com/shorts/60gZOXu5gcQ?pp=EkAu2o2eUgp4SZV-"));
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?pp=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg"));
-        assert_eq!("https://www.youtube.com/watch?v=vWLUMXNhWANg&", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=vWLUMXNhWANg&pp=ygUhamltIGdyZWVuIGFu2o2eYW4gcmFuZ2VyIGJhcmVmb290"));
+        assert_eq!("https://www.youtube.com/watch?v=vWLUMXNhWANg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=vWLUMXNhWANg&pp=ygUhamltIGdyZWVuIGFu2o2eYW4gcmFuZ2VyIGJhcmVmb290"));
 
-        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg&", youtube::remove_tracking_parameters("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-"));
-        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg&", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-&si=EkAu2o2eUgp4SZV-"));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-"));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-&si=EkAu2o2eUgp4SZV-"));
     }
 }
