@@ -15,6 +15,42 @@ pub fn rfind(string: &str, substring: &str, index: usize) -> Option<usize> {
         )
 }
 
+pub fn url_parameter_removal(url:&str, parameters_vec: Vec<&str>) -> String {
+    let mut result = String::new();
+    let url_string = url.to_string();
+
+    let mut parameters = HashSet::new();
+
+    for disallowed_parameter in parameters_vec {
+        parameters.insert(disallowed_parameter.to_string());
+    }
+
+    //---------------------
+
+    let mut first_chunk_iterator = url_string.split("?");
+    let first_chunk = first_chunk_iterator.next().unwrap();
+    let second_chunk = first_chunk_iterator.next();
+
+    if !second_chunk.is_some() {
+        return url.to_string();
+    }
+
+    result.push_str(first_chunk);
+    let second_chunk_unwrapped = second_chunk.unwrap();
+
+    //---------------------
+
+    let parameter_iterator = second_chunk_unwrapped.split("&");
+    let filtered_parameters = parameter_iterator.filter(|parameter| !parameters.contains(parameter.split("=").next().unwrap()));
+    let remaining_parameters = filtered_parameters.collect::<Vec<&str>>().join("&");
+
+    if !remaining_parameters.is_empty() {
+        result.push_str(&("?".to_owned() + &remaining_parameters));
+    }
+
+    result.to_string()
+}
+
 pub mod youtube {
     pub fn is_youtube_url(url: &str) -> bool {
         let starting_urls = [
@@ -47,37 +83,7 @@ pub mod youtube {
 
     pub fn remove_tracking_parameters(url: &str) -> String {
         if is_youtube_url(url) {
-            let mut result = String::new();
-            let url_string = url.to_string();
-
-            let mut parameters = super::HashSet::new();
-            parameters.insert("si".to_string());
-            parameters.insert("pp".to_string());
-
-            //---------------------
-
-            let mut first_chunk_iterator = url_string.split("?");
-            let first_chunk = first_chunk_iterator.next().unwrap();
-            let second_chunk = first_chunk_iterator.next();
-
-            if !second_chunk.is_some() {
-                return url.to_string();
-            }
-
-            result.push_str(first_chunk);
-            let second_chunk_unwrapped = second_chunk.unwrap();
-
-            //---------------------
-
-            let parameter_iterator = second_chunk_unwrapped.split("&");
-            let filtered_parameters = parameter_iterator.filter(|parameter| !parameters.contains(parameter.split("=").next().unwrap()));
-            let remaining_parameters = filtered_parameters.collect::<Vec<&str>>().join("&");
-
-            if !remaining_parameters.is_empty() {
-                result.push_str(&("?".to_owned() + &remaining_parameters));
-            }
-
-            return result.to_string();
+            return super::url_parameter_removal(url, vec!["si", "pp"]);
         }
 
         url.to_string()
