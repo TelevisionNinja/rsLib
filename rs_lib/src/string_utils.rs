@@ -32,7 +32,7 @@ pub fn url_parameter_removal(url:&str, parameters_vec: Vec<&str>) -> String {
     let second_chunk = first_chunk_iterator.next();
 
     if !second_chunk.is_some() {
-        return url.to_string();
+        return url_string;
     }
 
     result.push_str(first_chunk);
