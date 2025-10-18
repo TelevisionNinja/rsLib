@@ -19,11 +19,7 @@ pub fn url_parameter_removal(url:&str, parameters_vec: Vec<&str>) -> String {
     let mut result = String::new();
     let url_string = url.to_string();
 
-    let mut parameters = HashSet::new();
-
-    for disallowed_parameter in parameters_vec {
-        parameters.insert(disallowed_parameter.to_string());
-    }
+    let parameters: HashSet<&str> = HashSet::from_iter(parameters_vec);
 
     //---------------------
 
