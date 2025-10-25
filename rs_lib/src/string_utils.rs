@@ -47,6 +47,38 @@ pub fn url_parameter_removal(url:&str, parameters_vec: Vec<&str>) -> String {
     result.to_string()
 }
 
+pub fn url_parameter_whitelist(url:&str, parameters_vec: Vec<&str>) -> String {
+    let mut result = String::new();
+    let url_string = url.to_string();
+
+    let parameters: HashSet<&str> = HashSet::from_iter(parameters_vec);
+
+    //---------------------
+
+    let mut first_chunk_iterator = url_string.split("?");
+    let first_chunk = first_chunk_iterator.next().unwrap();
+    let second_chunk = first_chunk_iterator.next();
+
+    if !second_chunk.is_some() {
+        return url_string;
+    }
+
+    result.push_str(first_chunk);
+    let second_chunk_unwrapped = second_chunk.unwrap();
+
+    //---------------------
+
+    let parameter_iterator = second_chunk_unwrapped.split("&");
+    let filtered_parameters = parameter_iterator.filter(|parameter| parameters.contains(parameter.split("=").next().unwrap()));
+    let remaining_parameters = filtered_parameters.collect::<Vec<&str>>().join("&");
+
+    if !remaining_parameters.is_empty() {
+        result.push_str(&("?".to_owned() + &remaining_parameters));
+    }
+
+    result.to_string()
+}
+
 pub mod youtube {
     pub fn is_youtube_url(url: &str) -> bool {
         let starting_urls = [
@@ -131,5 +163,23 @@ mod tests {
 
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-"));
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", youtube::remove_tracking_parameters("https://www.youtube.com/watch?v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-&si=EkAu2o2eUgp4SZV-"));
+    }
+
+    #[test]
+    fn url_parameter_whitelist_tests() {
+        assert_eq!("https://youtu.be/2BO83Ig-E8E", url_parameter_whitelist("https://youtu.be/2BO83Ig-E8E", vec!["v"]));
+        assert_eq!("https://youtube.com/shorts/60gZOXu5gcQ", url_parameter_whitelist("https://youtube.com/shorts/60gZOXu5gcQ?si=EkAu2o2eUgp4SZV-", vec!["v"]));
+        assert_eq!("https://www.youtube.com/shorts/H3O6-SHr2fc", url_parameter_whitelist("https://www.youtube.com/shorts/H3O6-SHr2fc", vec!["v"]));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_whitelist("https://www.youtube.com/watch?v=HCE_lFUMXNg", vec!["v"]));
+
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_whitelist("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg", vec!["v"]));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_whitelist("https://www.youtube.com/watch?v=HCE_lFUMXNg&si=EkAu2o2eUgp4SZV-", vec!["v"]));
+
+        assert_eq!("https://youtube.com/shorts/60gZOXu5gcQ", url_parameter_whitelist("https://youtube.com/shorts/60gZOXu5gcQ?pp=EkAu2o2eUgp4SZV-", vec!["v"]));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_whitelist("https://www.youtube.com/watch?pp=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg", vec!["v"]));
+        assert_eq!("https://www.youtube.com/watch?v=vWLUMXNhWANg", url_parameter_whitelist("https://www.youtube.com/watch?v=vWLUMXNhWANg&pp=ygUhamltIGdyZWVuIGFu2o2eYW4gcmFuZ2VyIGJhcmVmb290", vec!["v"]));
+
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_whitelist("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-", vec!["v"]));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_whitelist("https://www.youtube.com/watch?v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-&si=EkAu2o2eUgp4SZV-", vec!["v"]));
     }
 }
