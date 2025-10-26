@@ -16,13 +16,9 @@ pub fn rfind(string: &str, substring: &str, index: usize) -> Option<usize> {
 }
 
 pub fn url_parameter_filter(url:&str, parameters_vec: Vec<&str>, is_blacklist: bool) -> String {
-    let mut result = String::new();
+    // domain part
+
     let url_string = url.to_string();
-
-    let parameters: HashSet<&str> = HashSet::from_iter(parameters_vec);
-
-    //---------------------
-
     let mut first_chunk_iterator = url_string.split("?");
     let first_chunk = first_chunk_iterator.next().unwrap();
     let second_chunk = first_chunk_iterator.next();
@@ -31,11 +27,14 @@ pub fn url_parameter_filter(url:&str, parameters_vec: Vec<&str>, is_blacklist: b
         return url_string;
     }
 
+    let mut result = String::new();
     result.push_str(first_chunk);
-    let second_chunk_unwrapped = second_chunk.unwrap();
+    let parameters: HashSet<&str> = HashSet::from_iter(parameters_vec);
 
     //---------------------
+    // parameter part
 
+    let second_chunk_unwrapped = second_chunk.unwrap();
     let parameter_iterator = second_chunk_unwrapped.split("&");
     let filtered_parameters = parameter_iterator.filter(|parameter| is_blacklist ^ parameters.contains(parameter.split("=").next().unwrap()));
     let remaining_parameters = filtered_parameters.collect::<Vec<&str>>().join("&");
