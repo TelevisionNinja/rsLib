@@ -61,7 +61,7 @@ impl AhoCorasick {
         false
     }
 
-    pub fn build(&mut self, words: &[String]) {
+    pub fn build(&mut self, words: Vec<&str>) {
         for word in words {
             self.insert(word);
         }
@@ -202,13 +202,14 @@ impl AhoCorasick {
 mod tests {
     use super::*;
 
-    fn vector_pair_to_string(pairs: &[(usize, usize)]) -> String {
+    fn vector_pair_to_string(pairs: Vec<(usize, usize)>) -> String {
         if pairs.is_empty() {
             return "".to_string();
         }
+
         pairs
             .iter()
-            .map(|(i, l)| format!("({} {})", i, l))
+            .map(|(index, length)| format!("({} {})", index, length))
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -222,46 +223,46 @@ mod tests {
         assert_eq!(true, aho_corasick.nodes[0].output_links.is_empty());
         assert_eq!(None, aho_corasick.nodes[0].suffix_link);
 
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("")), "");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("apple")), "");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("")), "");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("apple")), "");
 
-        let word_list = vec!["apple".to_string(), "app".to_string(), "bat".to_string()];
-        aho_corasick.build(&word_list);
+        let word_list = vec!["apple", "app", "bat"];
+        aho_corasick.build(word_list);
 
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("apple")), "(0 3), (0 5)");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("app")), "(0 3)");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("bat")), "(0 3)");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("batapple")), "(0 3), (3 3), (3 5)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("apple")), "(0 3), (0 5)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("app")), "(0 3)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("bat")), "(0 3)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("batapple")), "(0 3), (3 3), (3 5)");
 
         aho_corasick.remove("apple");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("apple")), "(0 3)");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("app")), "(0 3)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("apple")), "(0 3)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("app")), "(0 3)");
 
         aho_corasick.remove("app");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("app")), "");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("bat")), "(0 3)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("app")), "");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("bat")), "(0 3)");
 
         aho_corasick.insert("apple");
         aho_corasick.insert("app");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("apple")), "(0 3), (0 5)");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("app")), "(0 3)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("apple")), "(0 3), (0 5)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("app")), "(0 3)");
 
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("")), "");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("")), "");
         aho_corasick.remove("bat");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("")), "");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("")), "");
 
         aho_corasick.insert("");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("")), "(0 0)");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("")), "(0 0)");
         aho_corasick.remove("");
-        assert_eq!(vector_pair_to_string(&aho_corasick.search("")), "");
+        assert_eq!(vector_pair_to_string(aho_corasick.search("")), "");
 
         aho_corasick.insert("i");
         aho_corasick.insert("in");
         aho_corasick.insert("tin");
         aho_corasick.insert("sting");
         assert_eq!(
-            vector_pair_to_string(&aho_corasick.search("stings")) == "(2 1), (1 3), (2 2), (0 5)" ||
-            vector_pair_to_string(&aho_corasick.search("stings")) == "(2 1), (2 2), (1 3), (0 5)",
+            vector_pair_to_string(aho_corasick.search("stings")) == "(2 1), (1 3), (2 2), (0 5)" ||
+            vector_pair_to_string(aho_corasick.search("stings")) == "(2 1), (2 2), (1 3), (0 5)",
             true
         );
     }
