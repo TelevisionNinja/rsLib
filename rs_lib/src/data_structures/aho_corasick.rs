@@ -3,10 +3,10 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 
 pub struct AhoCorasickNode {
-    children: HashMap<char, usize>,
-    suffix_link: Option<usize>,
-    output_links: HashSet<usize>,
-    length: usize,
+    pub children: HashMap<char, usize>,
+    pub suffix_link: Option<usize>,
+    pub output_links: HashSet<usize>,
+    pub length: usize,
 }
 
 impl AhoCorasickNode {
@@ -21,8 +21,8 @@ impl AhoCorasickNode {
 }
 
 pub struct AhoCorasick {
-    nodes: Vec<AhoCorasickNode>,
-    root: usize
+    pub nodes: Vec<AhoCorasickNode>,
+    pub root: usize
 }
 
 impl AhoCorasick {
