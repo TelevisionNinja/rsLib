@@ -21,41 +21,41 @@ impl AhoCorasickNode {
 }
 
 pub struct AhoCorasick {
-    pub nodes: Vec<AhoCorasickNode>,
+    pub nodes: HashMap<usize, AhoCorasickNode>,
     pub root: usize
 }
 
 impl AhoCorasick {
     pub fn new() -> Self {
-        let mut nodes = Vec::new();
+        let mut nodes = HashMap::new();
         let root = 0;
-        nodes.push(AhoCorasickNode::new());
+        nodes.insert(root, AhoCorasickNode::new());
 
         Self { nodes, root }
     }
 
-    fn delete_trie_node(&mut self, node_id: usize, word: &str, depth: usize) -> bool {
+    fn delete_trie_node(&mut self, node_id: usize, word: &Vec<char>, depth: usize) -> bool {
         if depth == word.len() {
-            if self.nodes[node_id].length == 0 {
+            if self.nodes.get(&node_id).unwrap().length == 0 {
                 return false;
             }
 
-            self.nodes[node_id].length = 0;
-            return self.nodes[node_id].children.is_empty();
+            self.nodes.get_mut(&node_id).unwrap().length = 0;
+            return self.nodes.get(&node_id).unwrap().children.is_empty();
         }
 
-        let c = word.chars().nth(depth).unwrap();
+        let c = word[depth];
 
-        if !self.nodes[node_id].children.contains_key(&c) {
+        if !self.nodes.get(&node_id).unwrap().children.contains_key(&c) {
             return false;
         }
 
-        let child_id = self.nodes[node_id].children.get(&c).unwrap();
+        let child_id = self.nodes.get(&node_id).unwrap().children.get(&c).unwrap();
         let should_delete_child = self.delete_trie_node(*child_id, word, depth + 1);
 
         if should_delete_child {
-            self.nodes[node_id].children.remove(&c);
-            return self.nodes[node_id].children.is_empty() && self.nodes[node_id].length == 0;
+            self.nodes.get_mut(&node_id).unwrap().children.remove(&c).unwrap();
+            return self.nodes.get(&node_id).unwrap().children.is_empty() && self.nodes.get(&node_id).unwrap().length == 0;
         }
 
         false
@@ -73,17 +73,17 @@ impl AhoCorasick {
         let mut node_id = self.root;
 
         for c in word.chars() {
-            if !self.nodes[node_id].children.contains_key(&c) {
+            if !self.nodes.get(&node_id).unwrap().children.contains_key(&c) {
                 let new_id = self.nodes.len();
-                self.nodes.push(AhoCorasickNode::new());
-                self.nodes[node_id].children.insert(c, new_id);
+                self.nodes.insert(new_id, AhoCorasickNode::new());
+                self.nodes.get_mut(&node_id).unwrap().children.insert(c, new_id);
             }
 
-            node_id = self.nodes[node_id].children[&c];
+            node_id = self.nodes.get(&node_id).unwrap().children[&c];
         }
 
-        self.nodes[node_id].output_links.insert(node_id);
-        self.nodes[node_id].length = word.len(); // height at the node is the length of the string
+        self.nodes.get_mut(&node_id).unwrap().output_links.insert(node_id);
+        self.nodes.get_mut(&node_id).unwrap().length = word.len(); // height at the node is the length of the string
     }
 
     pub fn insert(&mut self, word: &str) {
@@ -97,7 +97,7 @@ impl AhoCorasick {
 
         // empty string case
         // only the root's output set's size is check because the empty string has no length
-        if !self.nodes[node].output_links.is_empty() {
+        if !self.nodes.get(&node).unwrap().output_links.is_empty() {
             output.push((0, 0)); // no need to iterate through output links
         }
 
@@ -107,12 +107,12 @@ impl AhoCorasick {
         while i < characters.len() {
             let c = characters[i];
 
-            if let Some(&next) = self.nodes[node].children.get(&c) {
+            if let Some(&next) = self.nodes.get(&node).unwrap().children.get(&c) {
                 node = next;
                 i += 1;
 
-                for &out_node in &self.nodes[node].output_links {
-                    let len = self.nodes[out_node].length;
+                for &out_node in &self.nodes.get(&node).unwrap().output_links {
+                    let len = self.nodes.get(&out_node).unwrap().length;
                     output.push((i - len, len));
                 }
             }
@@ -120,7 +120,7 @@ impl AhoCorasick {
                 i += 1;
             }
             else {
-                node = self.nodes[node].suffix_link.unwrap();
+                node = self.nodes.get(&node).unwrap().suffix_link.unwrap();
             }
         }
 
@@ -128,7 +128,7 @@ impl AhoCorasick {
     }
 
     pub fn remove(&mut self, word: &str) {
-        self.delete_trie_node(self.root, word, 0);
+        self.delete_trie_node(self.root, &word.chars().collect(), 0);
         self.delete_links();
         self.construct_links();
     }
@@ -137,41 +137,41 @@ impl AhoCorasick {
         // BFS
         let mut node_queue: VecDeque<usize> = VecDeque::new();
 
-        for (&_key, &value) in self.nodes[self.root].children.clone().iter() {
-            self.nodes[value].suffix_link = Some(self.root);
+        for (&_key, &value) in self.nodes.get(&self.root).unwrap().children.clone().iter() {
+            self.nodes.get_mut(&value).unwrap().suffix_link = Some(self.root);
             node_queue.push_back(value);
         }
 
         while let Some(current) = node_queue.pop_front() {
-            let current_node = &mut self.nodes[current];
+            let current_node = &mut self.nodes.get(&current).unwrap();
             let keys: Vec<char> = current_node.children.keys().cloned().collect();
 
             for key in keys {
-                let child_id = self.nodes[current].children[&key];
+                let child_id = self.nodes.get(&current).unwrap().children[&key];
                 node_queue.push_back(child_id);
 
                 // output links
-                let mut failure_node_id = self.nodes[current].suffix_link;
+                let mut failure_node_id = self.nodes.get(&current).unwrap().suffix_link;
 
                 while let Some(current_failure_node_id) = failure_node_id {
-                    if self.nodes[current_failure_node_id].children.contains_key(&key) {
+                    if self.nodes.get(&current_failure_node_id).unwrap().children.contains_key(&key) {
                         break;
                     }
 
-                    failure_node_id = self.nodes[current_failure_node_id].suffix_link;
+                    failure_node_id = self.nodes.get(&current_failure_node_id).unwrap().suffix_link;
                 }
 
                 if let Some(failure_node_id_unrapped) = failure_node_id {
-                    self.nodes[child_id].suffix_link = self.nodes[failure_node_id_unrapped].children.get(&key).copied();
+                    self.nodes.get_mut(&child_id).unwrap().suffix_link = self.nodes.get(&failure_node_id_unrapped).unwrap().children.get(&key).copied();
                 }
                 else {
-                    self.nodes[child_id].suffix_link = Some(self.root);
+                    self.nodes.get_mut(&child_id).unwrap().suffix_link = Some(self.root);
                 }
 
-                let suffix_node_id = self.nodes[child_id].suffix_link.unwrap();
-                let output_clone = self.nodes[suffix_node_id].output_links.clone();
+                let suffix_node_id = self.nodes.get(&child_id).unwrap().suffix_link.unwrap();
+                let output_clone = self.nodes.get(&suffix_node_id).unwrap().output_links.clone();
                 for output_node in output_clone {
-                    self.nodes[child_id].output_links.insert(output_node);
+                    self.nodes.get_mut(&child_id).unwrap().output_links.insert(output_node);
                 }
             }
         }
@@ -182,7 +182,7 @@ impl AhoCorasick {
         let mut stack = vec![self.root];
 
         while let Some(id) = stack.pop() {
-            let aho_corasick_node = &mut self.nodes[id];
+            let aho_corasick_node = self.nodes.get_mut(&id).unwrap();
 
             aho_corasick_node.suffix_link = None;
             aho_corasick_node.output_links.clear();
@@ -219,9 +219,9 @@ mod tests {
         let mut aho_corasick = AhoCorasick::new();
 
         assert_eq!(0, aho_corasick.nodes.len() - 1);
-        assert_eq!(true, aho_corasick.nodes[0].children.is_empty());
-        assert_eq!(true, aho_corasick.nodes[0].output_links.is_empty());
-        assert_eq!(None, aho_corasick.nodes[0].suffix_link);
+        assert_eq!(true, aho_corasick.nodes.get(&0).unwrap().children.is_empty());
+        assert_eq!(true, aho_corasick.nodes.get(&0).unwrap().output_links.is_empty());
+        assert_eq!(None, aho_corasick.nodes.get(&0).unwrap().suffix_link);
 
         assert_eq!(vector_pair_to_string(aho_corasick.search("")), "");
         assert_eq!(vector_pair_to_string(aho_corasick.search("apple")), "");

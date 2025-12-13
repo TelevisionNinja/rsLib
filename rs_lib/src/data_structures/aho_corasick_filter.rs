@@ -43,12 +43,12 @@ impl AhoCorasickFilter {
         while i < characters.len() {
             let c = characters[i];
 
-            if let Some(&next) = self.inner.nodes[node].children.get(&c) {
+            if let Some(&next) = self.inner.nodes.get(&node).unwrap().children.get(&c) {
                 node = next;
                 i += 1;
 
-                for &out_node in &self.inner.nodes[node].output_links {
-                    let len = self.inner.nodes[out_node].length;
+                for &out_node in &self.inner.nodes.get(&node).unwrap().output_links {
+                    let len = self.inner.nodes.get(&out_node).unwrap().length;
                     let start_index = i - len;
 
                     if let Some(current) = indices.get(&start_index) {
@@ -63,7 +63,7 @@ impl AhoCorasickFilter {
                 i += 1;
             }
             else {
-                node = self.inner.nodes[node].suffix_link.unwrap();
+                node = self.inner.nodes.get(&node).unwrap().suffix_link.unwrap();
             }
         }
 
