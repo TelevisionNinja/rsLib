@@ -82,8 +82,9 @@ impl AhoCorasick {
             node_id = self.nodes.get(&node_id).unwrap().children[&c];
         }
 
-        self.nodes.get_mut(&node_id).unwrap().output_links.insert(node_id);
-        self.nodes.get_mut(&node_id).unwrap().length = word.len(); // height at the node is the length of the string
+        let new_node = self.nodes.get_mut(&node_id).unwrap();
+        new_node.output_links.insert(node_id);
+        new_node.length = word.len(); // height at the node is the length of the string
     }
 
     pub fn insert(&mut self, word: &str) {
