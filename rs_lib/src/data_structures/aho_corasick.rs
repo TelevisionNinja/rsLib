@@ -22,16 +22,19 @@ impl AhoCorasickNode {
 
 pub struct AhoCorasick {
     pub nodes: HashMap<usize, AhoCorasickNode>,
-    pub root: usize
+    pub root: usize,
+    new_node_id: usize
 }
 
 impl AhoCorasick {
     pub fn new() -> Self {
         let mut nodes = HashMap::new();
-        let root = 0;
+        let mut new_node_id = 0;
+        let root = new_node_id;
+        new_node_id += 1;
         nodes.insert(root, AhoCorasickNode::new());
 
-        Self { nodes, root }
+        Self { nodes, root, new_node_id }
     }
 
     fn delete_trie_node(&mut self, node_id: usize, word: &Vec<char>, depth: usize) -> bool {
@@ -75,7 +78,8 @@ impl AhoCorasick {
 
         for c in word.chars() {
             if !self.nodes.get(&node_id).unwrap().children.contains_key(&c) {
-                let new_id = self.nodes.len();
+                let new_id = self.new_node_id;
+                self.new_node_id += 1;
                 self.nodes.insert(new_id, AhoCorasickNode::new());
                 self.nodes.get_mut(&node_id).unwrap().children.insert(c, new_id);
             }
