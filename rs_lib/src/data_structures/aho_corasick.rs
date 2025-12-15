@@ -55,7 +55,8 @@ impl AhoCorasick {
 
         if should_delete_child {
             self.nodes.get_mut(&node_id).unwrap().children.remove(&c).unwrap();
-            return self.nodes.get(&node_id).unwrap().children.is_empty() && self.nodes.get(&node_id).unwrap().length == 0;
+            let current_node = self.nodes.get(&node_id).unwrap();
+            return current_node.children.is_empty() && current_node.length == 0;
         }
 
         false
