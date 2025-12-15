@@ -57,7 +57,9 @@ impl AhoCorasick {
         let should_delete_child = self.delete_trie_node(*child_id, word, depth + 1);
 
         if should_delete_child {
-            self.nodes.get_mut(&node_id).unwrap().children.remove(&c).unwrap();
+            let deleting_id = self.nodes.get_mut(&node_id).unwrap().children.remove(&c).unwrap();
+            self.nodes.remove(&deleting_id);
+
             let current_node = self.nodes.get(&node_id).unwrap();
             return current_node.children.is_empty() && current_node.length == 0;
         }
