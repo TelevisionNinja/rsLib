@@ -79,7 +79,7 @@ impl AhoCorasickFilter {
                 // all accept indices will have return lengths greater than 0
                 output += censored_string;
 
-                let mut end_index = j + indices[&j];
+                let mut end_index = j + indices.get(&j).unwrap();
                 j += 1;
 
                 while j < end_index {
