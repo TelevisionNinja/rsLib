@@ -80,7 +80,7 @@ impl AhoCorasick {
                 self.nodes.get_mut(&node_id).unwrap().children.insert(c, new_id);
             }
 
-            node_id = self.nodes.get(&node_id).unwrap().children[&c];
+            node_id = *self.nodes.get(&node_id).unwrap().children.get(&c).unwrap();
         }
 
         let new_node = self.nodes.get_mut(&node_id).unwrap();
@@ -149,7 +149,7 @@ impl AhoCorasick {
             let keys: Vec<char> = current_node.children.keys().cloned().collect();
 
             for key in keys {
-                let child_id = self.nodes.get(&current).unwrap().children[&key];
+                let child_id = *self.nodes.get(&current).unwrap().children.get(&key).unwrap();
                 node_queue.push_back(child_id);
 
                 // output links
