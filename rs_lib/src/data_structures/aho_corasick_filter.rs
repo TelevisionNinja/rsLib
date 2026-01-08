@@ -1,5 +1,6 @@
 use std::cmp::max;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use super::aho_corasick::AhoCorasick;
 
 pub struct AhoCorasickFilter {
@@ -114,6 +115,117 @@ impl AhoCorasickFilter {
 
         output
     }
+
+    /**
+     * time: O(n)
+     * returns filtered string
+     */
+    pub fn filter_and_ignore_chars(&self, string: &str, censored_string: &str, ignore_chars: HashSet<char>) -> String {
+        let mut node = self.inner.root;
+        let mut indices: HashMap<usize, usize> = HashMap::new();
+
+        // empty string case is removed as it does not make sense in a filtering function
+
+        let characters: Vec<_> = string.chars().collect();
+        let mut i = 0;
+
+        while i < characters.len() {
+            let c = characters[i];
+
+            if ignore_chars.contains(&c) {
+                i += 1;
+            }
+            else if let Some(&next) = self.inner.nodes.get(&node).unwrap().children.get(&c) {
+                node = next;
+
+                for &out_node in &self.inner.nodes.get(&node).unwrap().output_links {
+                    let len = self.inner.nodes.get(&out_node).unwrap().length;
+
+                    if let Some(current) = indices.get(&i) {
+                        indices.insert(i, max(*current, len));
+                    }
+                    else {
+                        indices.insert(i, len);
+                    }
+                }
+
+                i += 1;
+            }
+            else if node == self.inner.root {
+                i += 1;
+            }
+            else {
+                node = self.inner.nodes.get(&node).unwrap().suffix_link.unwrap();
+            }
+        }
+
+        //---------
+
+        let mut output: String = String::new();
+        let mut j = string.len();
+
+        while j > 0 {
+            j -= 1;
+
+            if ignore_chars.contains(&characters[j]) || !indices.contains_key(&j) {
+                output += &characters[j].to_string();
+            }
+            else {
+                // the found bound is always in the array bounds because of the DFA
+                // loop is unrolled by 1 iteration to have all loop logic in the required iterations
+                // all accept indices will have return lengths greater than 0
+                output += censored_string;
+
+                let mut length = *indices.get(&j).unwrap();
+                let mut k = 1;
+                j -= 1;
+
+                while k < length {
+                    /*
+                    edge on edge case:
+                    0 * * * *
+                            4 * * * * *
+
+                    intersection case:
+                    0 * * *
+                      1 * * * * *
+
+                    subset case:
+                    0 * * * *
+                      1 * *
+
+                    disjoint case:
+                    0 * * * _ _
+                                6 * * *
+                    */
+
+                    if ignore_chars.contains(&characters[j]) {
+                        output += &characters[j].to_string();
+                    }
+                    else {
+                        if let Some(other_length) = indices.get(&j) {
+                            let difference = length - k;
+
+                            if difference == 0 {
+                                length = *other_length;
+                                k = 0;
+                            }
+                            else {
+                                length = max(length, other_length + difference);
+                            }
+                        }
+
+                        output += censored_string;
+                        k += 1;
+                    }
+
+                    j = j.checked_sub(1).unwrap_or(j);
+                }
+            }
+        }
+
+        output.chars().rev().collect::<String>()
+    }
 }
 
 #[cfg(test)]
@@ -199,5 +311,11 @@ mod tests {
         assert_eq!(aho_corasick_filter.filter("bat", "*"), "***");
         assert_eq!(aho_corasick_filter.filter("batapple", "*"), "********");
         assert_eq!(aho_corasick_filter.filter("", "*"), "");
+
+        //-----
+
+        aho_corasick_filter = AhoCorasickFilter::new();
+        aho_corasick_filter.insert("135");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("123456", "*", HashSet::from(['2', '4', '6'])), "*2*4*6");
     }
 }
