@@ -87,11 +87,11 @@ impl AhoCorasickFilter {
                     /*
                     intersection case:
                     0 * * *
-                    1 * * * * *
+                      1 * * * * *
 
                     subset case:
                     0 * * * *
-                    1 * *
+                      1 * *
 
                     disjoint case:
                     0 * * * _ _
