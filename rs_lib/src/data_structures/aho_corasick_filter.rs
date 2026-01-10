@@ -243,7 +243,7 @@ mod tests {
         assert_eq!(vector_pair_to_string(aho_corasick_filter.search("")), "");
         assert_eq!(vector_pair_to_string(aho_corasick_filter.search("apple")), "");
 
-        let word_list = vec!["apple", "app", "bat"];
+        let mut word_list = vec!["apple", "app", "bat"];
         aho_corasick_filter.build(word_list);
 
         assert_eq!(vector_pair_to_string(aho_corasick_filter.search("apple")), "(0 3), (0 5)");
@@ -305,6 +305,27 @@ mod tests {
         assert_eq!(aho_corasick_filter.filter("", "*"), "");
 
         //-----
+
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("apple", "*", HashSet::new()), "*****");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("app", "*", HashSet::new()), "***");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("", "*", HashSet::new()), "");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("bat", "*", HashSet::new()), "***");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("batapple", "*", HashSet::new()), "********");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("bataapple", "*", HashSet::new()), "***a*****");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("batapapple", "*", HashSet::new()), "***ap*****");
+
+        aho_corasick_filter = AhoCorasickFilter::new();
+        word_list = vec!["apple", "app", "bat", "apapple"];
+        aho_corasick_filter.build(word_list);
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("batapapple", "*", HashSet::new()), "**********");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("bataapapple", "*", HashSet::new()), "***a*******");
+
+        aho_corasick_filter = AhoCorasickFilter::new();
+        word_list = vec!["apple", "app", "bat", "apap"];
+        aho_corasick_filter.build(word_list);
+
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("batapapple", "*", HashSet::new()), "**********");
+        assert_eq!(aho_corasick_filter.filter_and_ignore_chars("bataapapple", "*", HashSet::new()), "***a*******");
 
         aho_corasick_filter = AhoCorasickFilter::new();
         aho_corasick_filter.insert("135");
