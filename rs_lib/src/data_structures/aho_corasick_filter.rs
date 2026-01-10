@@ -141,11 +141,13 @@ impl AhoCorasickFilter {
                 for &out_node in &self.inner.nodes.get(&node).unwrap().output_links {
                     let len = self.inner.nodes.get(&out_node).unwrap().length;
 
-                    if let Some(current) = indices.get(&i) {
-                        indices.insert(i, max(*current, len));
-                    }
-                    else {
-                        indices.insert(i, len);
+                    if len != 0 {
+                        if let Some(current) = indices.get(&i) {
+                            indices.insert(i, max(*current, len));
+                        }
+                        else {
+                            indices.insert(i, len);
+                        }
                     }
                 }
 
@@ -167,25 +169,23 @@ impl AhoCorasickFilter {
         while j > 0 {
             j -= 1;
 
-            if ignore_chars.contains(&characters[j]) || !indices.contains_key(&j) {
+            if ignore_chars.contains(&characters[j]) {
                 output += &characters[j].to_string();
             }
-            else {
+            else if indices.contains_key(&j) {
                 // the found bound is always in the array bounds because of the DFA
                 // loop is unrolled by 1 iteration to have all loop logic in the required iterations
                 // all accept indices will have return lengths greater than 0
+
                 output += censored_string;
 
                 let mut length = *indices.get(&j).unwrap();
                 let mut k = 1;
-                j -= 1;
 
                 while k < length {
-                    /*
-                    edge on edge case:
-                    0 * * * *
-                            4 * * * * *
+                    j -= 1;
 
+                    /*
                     intersection case:
                     0 * * *
                       1 * * * * *
@@ -204,23 +204,18 @@ impl AhoCorasickFilter {
                     }
                     else {
                         if let Some(other_length) = indices.get(&j) {
-                            let difference = length - k;
-
-                            if difference == 0 {
-                                length = *other_length;
-                                k = 0;
-                            }
-                            else {
-                                length = max(length, other_length + difference);
+                            if length - k < *other_length {
+                                length = other_length + k; // no minus 1 because k is 1 behind j here
                             }
                         }
 
                         output += censored_string;
                         k += 1;
                     }
-
-                    j = j.checked_sub(1).unwrap_or(j);
                 }
+            }
+            else {
+                output += &characters[j].to_string();
             }
         }
 
