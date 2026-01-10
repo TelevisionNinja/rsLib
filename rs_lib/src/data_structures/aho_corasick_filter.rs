@@ -169,10 +169,10 @@ impl AhoCorasickFilter {
         while j > 0 {
             j -= 1;
 
-            if ignore_chars.contains(&characters[j]) {
+            if ignore_chars.contains(&characters[j]) || !indices.contains_key(&j) {
                 output += &characters[j].to_string();
             }
-            else if indices.contains_key(&j) {
+            else {
                 // the found bound is always in the array bounds because of the DFA
                 // loop is unrolled by 1 iteration to have all loop logic in the required iterations
                 // all accept indices will have return lengths greater than 0
@@ -213,9 +213,6 @@ impl AhoCorasickFilter {
                         k += 1;
                     }
                 }
-            }
-            else {
-                output += &characters[j].to_string();
             }
         }
 
