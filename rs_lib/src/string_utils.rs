@@ -19,14 +19,15 @@ pub fn url_parameter_filter(url:&str, parameters_vec: Vec<&str>, is_blacklist: b
     // domain part
 
     let url_string = url.to_string();
-    let mut first_chunk_iterator = url_string.split("?");
-    let first_chunk = first_chunk_iterator.next().unwrap();
-    let second_chunk = first_chunk_iterator.next();
+    let first_split = url_string.split_once("?");
 
-    if !second_chunk.is_some() {
+    if first_split.is_none() {
         return url_string;
     }
 
+    let first_split_parts = first_split.unwrap();
+    let first_chunk = first_split_parts.0;
+    let second_chunk = first_split_parts.1;
     let mut result = String::new();
     result.push_str(first_chunk);
     let parameters: HashSet<&str> = HashSet::from_iter(parameters_vec);
@@ -34,8 +35,7 @@ pub fn url_parameter_filter(url:&str, parameters_vec: Vec<&str>, is_blacklist: b
     //---------------------
     // parameter part
 
-    let second_chunk_unwrapped = second_chunk.unwrap();
-    let parameter_iterator = second_chunk_unwrapped.split("&");
+    let parameter_iterator = second_chunk.split("&");
     let filtered_parameters = parameter_iterator.filter(|parameter| is_blacklist ^ parameters.contains(parameter.split("=").next().unwrap()));
     let remaining_parameters = filtered_parameters.collect::<Vec<&str>>().join("&");
 
