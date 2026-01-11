@@ -148,5 +148,8 @@ mod tests {
 
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_filter("https://www.youtube.com/watch?si=EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-", vec!["v"], false));
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_filter("https://www.youtube.com/watch?v=HCE_lFUMXNg&pp=EkAu2o2eUgp4SZV-&si=EkAu2o2eUgp4SZV-", vec!["v"], false));
+
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-", vec!["v"], false));
+        assert_eq!("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&pp_EkAu2o2eUgp4SZV-", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-", vec!["v"], true));
     }
 }
