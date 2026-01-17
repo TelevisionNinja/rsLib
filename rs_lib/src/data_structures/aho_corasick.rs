@@ -204,6 +204,54 @@ impl AhoCorasick {
             }
         }
     }
+
+    pub fn search_verbose(&self, string: &str) -> Vec<(usize, usize, usize)> {
+        let mut node = self.root;
+        let mut output = Vec::new();
+
+        // empty string case
+        // only the root's output set's size is check because the empty string has no length
+        if !self.nodes.get(&node).unwrap().output_links.is_empty() {
+            output.push((0, 0, 1)); // no need to iterate through output links
+        }
+
+        let characters: Vec<_> = string.chars().collect();
+        let mut i = 0;
+        let mut line_number = 1;
+        let mut skip_increment = false;
+
+        while i < characters.len() {
+            let c = characters[i];
+
+            if skip_increment {
+                skip_increment = false;
+            }
+            else {
+                if c == '\n' {
+                    line_number += 1;
+                }
+            }
+
+            if let Some(&next) = self.nodes.get(&node).unwrap().children.get(&c) {
+                node = next;
+                i += 1;
+
+                for &out_node in &self.nodes.get(&node).unwrap().output_links {
+                    let len = self.nodes.get(&out_node).unwrap().length;
+                    output.push((i - len, len, line_number));
+                }
+            }
+            else if node == self.root {
+                i += 1;
+            }
+            else {
+                node = self.nodes.get(&node).unwrap().suffix_link.unwrap();
+                skip_increment = true;
+            }
+        }
+
+        output
+    }
 }
 
 #[cfg(test)]
@@ -218,6 +266,18 @@ mod tests {
         pairs
             .iter()
             .map(|(index, length)| format!("({} {})", index, length))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    fn vector_triple_to_string(pairs: Vec<(usize, usize, usize)>) -> String {
+        if pairs.is_empty() {
+            return "".to_string();
+        }
+
+        pairs
+            .iter()
+            .map(|(index, length, line_number)| format!("({} {} {})", index, length, line_number))
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -271,6 +331,59 @@ mod tests {
         assert_eq!(
             vector_pair_to_string(aho_corasick.search("stings")) == "(2 1), (1 3), (2 2), (0 5)" ||
             vector_pair_to_string(aho_corasick.search("stings")) == "(2 1), (2 2), (1 3), (0 5)",
+            true
+        );
+
+        //---------
+
+        aho_corasick = AhoCorasick::new();
+
+        assert_eq!(0, aho_corasick.nodes.len() - 1);
+        assert_eq!(true, aho_corasick.nodes.get(&0).unwrap().children.is_empty());
+        assert_eq!(true, aho_corasick.nodes.get(&0).unwrap().output_links.is_empty());
+        assert_eq!(None, aho_corasick.nodes.get(&0).unwrap().suffix_link);
+
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("")), "");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("apple")), "");
+
+        let word_list = vec!["apple", "app", "bat"];
+        aho_corasick.build(word_list);
+
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("apple")), "(0 3 1), (0 5 1)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("app")), "(0 3 1)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("bat")), "(0 3 1)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("batapple")), "(0 3 1), (3 3 1), (3 5 1)");
+
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\napple")), "(1 3 2), (1 5 2)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\napp")), "(1 3 2)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\nbat")), "(1 3 2)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\nbatapple")), "(1 3 2), (4 3 2), (4 5 2)");
+
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("apple\n")), "(0 3 1), (0 5 1)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("app\n")), "(0 3 1)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("bat\n")), "(0 3 1)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("batapple\n")), "(0 3 1), (3 3 1), (3 5 1)");
+
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\napple\n")), "(1 3 2), (1 5 2)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\napp\n")), "(1 3 2)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\nbat\n")), "(1 3 2)");
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\nbatapple\n")), "(1 3 2), (4 3 2), (4 5 2)");
+
+        assert_eq!(vector_triple_to_string(aho_corasick.search_verbose("\nbat\napple\n")), "(1 3 2), (5 3 3), (5 5 3)");
+
+        aho_corasick.insert("i");
+        aho_corasick.insert("in");
+        aho_corasick.insert("tin");
+        aho_corasick.insert("sting");
+        assert_eq!(
+            vector_triple_to_string(aho_corasick.search_verbose("stings")) == "(2 1 1), (1 3 1), (2 2 1), (0 5 1)" ||
+            vector_triple_to_string(aho_corasick.search_verbose("stings")) == "(2 1 1), (2 2 1), (1 3 1), (0 5 1)",
+            true
+        );
+
+        assert_eq!(
+            vector_triple_to_string(aho_corasick.search_verbose("stings")) == "(2 1 1), (1 3 1), (2 2 1), (0 5 1)" ||
+            vector_triple_to_string(aho_corasick.search_verbose("stings")) == "(2 1 1), (2 2 1), (1 3 1), (0 5 1)",
             true
         );
     }
