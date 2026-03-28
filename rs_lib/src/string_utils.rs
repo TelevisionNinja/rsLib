@@ -46,6 +46,37 @@ pub fn url_parameter_filter(url:&str, parameters_vec: Vec<&str>, is_blacklist: b
     result.to_string()
 }
 
+pub fn word_n_grams(array: Vec<&str>, n: usize) -> HashSet<String> {
+    let mut set = HashSet::new();
+
+    if array.len() < n {
+        return set;
+    }
+
+    for i in 0..=array.len() - n {
+        let gram: String = array[i..i + n].join(" ");
+        set.insert(gram);
+    }
+
+    set
+}
+
+pub fn char_n_grams(s: &str, n: usize) -> HashSet<String> {
+    let mut set = HashSet::new();
+    let chars: Vec<char> = s.chars().collect();
+
+    if chars.len() < n {
+        return set;
+    }
+
+    for i in 0..=chars.len() - n {
+        let gram: String = chars[i..i + n].iter().collect();
+        set.insert(gram);
+    }
+
+    set
+}
+
 pub mod youtube {
     pub fn is_youtube_url(url: &str) -> bool {
         let starting_urls = [
@@ -151,5 +182,31 @@ mod tests {
 
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-", vec!["v"], false));
         assert_eq!("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&pp_EkAu2o2eUgp4SZV-", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-", vec!["v"], true));
+    }
+
+    #[test]
+    fn char_n_grams_test() {
+        let grams = char_n_grams("test", 2);
+        let expected: HashSet<String> = ["te", "es", "st"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(grams, expected);
+    }
+
+    #[test]
+    fn char_n_grams_short() {
+        let grams = char_n_grams("hi", 3);
+        assert!(grams.is_empty());
+    }
+
+    #[test]
+    fn word_n_grams_test() {
+        let grams = word_n_grams(vec!["apple", "app", "bat", "apap"], 2);
+        let expected: HashSet<String> = ["apple app", "app bat", "bat apap"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(grams, expected);
+    }
+
+    #[test]
+    fn word_n_grams_short() {
+        let grams = word_n_grams(vec!["hi"], 3);
+        assert!(grams.is_empty());
     }
 }
