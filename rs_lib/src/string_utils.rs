@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::cmp::min;
 
 pub fn find(string: &str, substring: &str, index: usize) -> Option<usize> {
     string.get(index..)
@@ -116,6 +117,75 @@ pub mod youtube {
     }
 }
 
+pub fn edit_distance(string1: &str, string2: &str) -> usize {
+    let word1: Vec<_> = string1.chars().collect();
+    let word2: Vec<_> = string2.chars().collect();
+    let word1_length = word1.len();
+    let word2_length = word2.len();
+
+    if word1_length == 0 {
+        return word2_length;
+    }
+    else if word2_length == 0 {
+        return word1_length;
+    }
+
+    let mut distance: Vec<usize> = Vec::with_capacity(word2_length);
+
+    for i in 1..=word2_length {
+        distance.push(i);
+    }
+
+    /*
+        j ->
+    i   w o r d 2
+    | w
+    v o
+      r
+      d
+      1
+
+    left = delete
+    corner = replace
+    top = insert
+    */
+    for i in 0..word1_length {
+        let current_char = word1[i];
+        let mut j = 0;
+        let mut replace = i;
+        let mut insert = distance[j];
+
+        // compute the first element of the array
+        if current_char == word2[j] {
+            distance[j] = replace;
+        }
+        else {
+            let delete_char = i + 1;
+            distance[j] = 1 + min(min(delete_char, replace), insert);
+        }
+
+        j += 1;
+
+        // compute the rest of the array
+        while j < word2_length {
+            replace = insert;
+            insert = distance[j];
+
+            if current_char == word2[j] {
+                distance[j] = replace;
+            }
+            else {
+                let delete_char = distance[j - 1];
+                distance[j] = 1 + min(min(delete_char, replace), insert);
+            }
+
+            j += 1;
+        }
+    }
+
+    return distance[word2_length - 1];
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -208,5 +278,127 @@ mod tests {
     fn word_n_grams_short() {
         let grams = word_n_grams(vec!["hi"], 3);
         assert!(grams.is_empty());
+    }
+
+    #[test]
+    fn identical_strings() {
+        assert_eq!(edit_distance("", ""), 0);
+        assert_eq!(edit_distance("hello", "hello"), 0);
+    }
+
+    #[test]
+    fn empty_strings() {
+        assert_eq!(edit_distance("", "abc"), 3);
+        assert_eq!(edit_distance("abc", ""), 3);
+    }
+
+    #[test]
+    fn single_insertion() {
+        assert_eq!(edit_distance("cat", "cats"), 1);
+    }
+
+    #[test]
+    fn single_deletion() {
+        assert_eq!(edit_distance("cats", "cat"), 1);
+    }
+
+    #[test]
+    fn single_substitution() {
+        assert_eq!(edit_distance("cat", "cut"), 1);
+    }
+
+    #[test]
+    fn kitten_sitting() {
+        assert_eq!(edit_distance("kitten", "sitting"), 3);
+    }
+
+    #[test]
+    fn flaw_lawn() {
+        assert_eq!(edit_distance("flaw", "lawn"), 2);
+    }
+
+    #[test]
+    fn gumbo_gambol() {
+        assert_eq!(edit_distance("gumbo", "gambol"), 2);
+    }
+
+    #[test]
+    fn completely_different() {
+        assert_eq!(edit_distance("abc", "xyz"), 3);
+    }
+
+    #[test]
+    fn repeated_characters() {
+        assert_eq!(edit_distance("aaaaa", "aaa"), 2);
+        assert_eq!(edit_distance("aaa", "aaaaa"), 2);
+    }
+
+    #[test]
+    fn transposition() {
+        assert_eq!(edit_distance("ab", "ba"), 2);
+    }
+
+    #[test]
+    fn long_common_prefix() {
+        assert_eq!(
+            edit_distance(
+                "abcdefghijklmnopqrstuvwxyy",
+                "abcdefghijklmnopqrstuvwxzz"
+            ),
+            2
+        );
+    }
+
+    #[test]
+    fn long_common_suffix() {
+        assert_eq!(
+            edit_distance(
+                "zzabcdefghijklmnopqrstuvwxyz",
+                "yyabcdefghijklmnopqrstuvwxyz"
+            ),
+            2
+        );
+    }
+
+    #[test]
+    fn case_sensitive() {
+        assert_eq!(edit_distance("Hello", "hello"), 1);
+    }
+
+    #[test]
+    fn whitespace() {
+        assert_eq!(edit_distance("hello world", "helloworld"), 1);
+    }
+
+    #[test]
+    fn punctuation() {
+        assert_eq!(edit_distance("hello!", "hello?"), 1);
+    }
+
+    #[test]
+    fn unicode_ascii() {
+        assert_eq!(edit_distance("café", "cafe"), 1);
+    }
+
+    #[test]
+    fn emoji_whitespace() {
+        assert_eq!(edit_distance("😀😃😄", "😀😄"), 1);
+    }
+
+    #[test]
+    fn symmetry() {
+        let a = "execution";
+        let b = "intention";
+
+        assert_eq!(edit_distance(a, b), edit_distance(b, a));
+    }
+
+    #[test]
+    fn triangle_like_example() {
+        let a = "cat";
+        let b = "cats";
+        let c = "cuts";
+
+        assert!(edit_distance(a, c) <= edit_distance(a, b) + edit_distance(b, c));
     }
 }
