@@ -6,7 +6,7 @@ pub struct AhoCorasickNode {
     pub children: HashMap<char, usize>,
     pub suffix_link: Option<usize>,
     pub output_links: HashSet<usize>,
-    pub length: usize,
+    pub length: usize
 }
 
 impl AhoCorasickNode {
