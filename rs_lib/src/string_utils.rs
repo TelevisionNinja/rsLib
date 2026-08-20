@@ -186,6 +186,137 @@ pub fn edit_distance(string1: &str, string2: &str) -> usize {
     return distance[word2_length - 1];
 }
 
+// ---------------------------
+
+pub struct ApproximateMatch {
+    pub start: usize,
+    pub end: usize,
+    pub distance: usize,
+    pub matched_string: String
+}
+
+#[derive(Clone)]
+enum EditType {
+    SUBSTITUTION,
+    DELETION,
+    INSERTION
+}
+
+pub fn approximate_match(pattern: &str, text: &str) -> ApproximateMatch {
+    let pattern_array: Vec<char> = pattern.chars().collect();
+    let text_array: Vec<char> = text.chars().collect();
+    let m = pattern_array.len();
+    let n = text_array.len();
+
+    if m == 0 {
+        return ApproximateMatch {
+            start: 0,
+            end: 0,
+            distance: 0,
+            matched_string: "".to_string()
+        };
+    }
+
+    if n == 0 {
+        return ApproximateMatch {
+            start: 0,
+            end: 0,
+            distance: m,
+            matched_string: "".to_string()
+        };
+    }
+
+    let mut dp: Vec<Vec<usize>> = vec![vec![0; n + 1]; m + 1];
+
+    // remember which operation to trace the match backwards
+    let mut path: Vec<Vec<EditType>> = vec![vec![EditType::SUBSTITUTION; n + 1]; m + 1];
+
+    // first row is initialized to zero so that matching can begin at any position
+    for j in 0..=n {
+        dp[0][j] = 0;
+    }
+
+    for i in 1..=m {
+        dp[i][0] = i;
+        path[i][0] = EditType::DELETION;
+    }
+
+    for i in 1..=m {
+        for j in 1..=n {
+            let mut substitution= dp[i - 1][j - 1];
+
+            if pattern_array[i - 1] != text_array[j - 1] {
+                substitution += 1;
+            }
+
+            let deletion = dp[i - 1][j] + 1;
+            let insertion = dp[i][j - 1] + 1;
+
+            let value;
+            let operation;
+            if substitution <= deletion && substitution <= insertion {
+                value = substitution;
+                operation = EditType::SUBSTITUTION;
+            }
+            else if deletion <= insertion {
+                value = deletion;
+                operation = EditType::DELETION;
+            }
+            else {
+                value = insertion;
+                operation = EditType::INSERTION;
+            }
+
+            dp[i][j] = value;
+            path[i][j] = operation;
+        }
+    }
+
+    // find the minimum value in last row
+    let mut end = 0;
+    let mut best_distance = dp[m][0];
+
+    for j in 1..=n {
+        if dp[m][j] <= best_distance { // rightmost
+            best_distance = dp[m][j];
+            end = j;
+        }
+    }
+
+    // trace backwards. the column ended on is where the matching substring begins
+    let mut i = m;
+    let mut start = end;
+
+    while i > 0 {
+        match path[i][start] {
+            // Diagonal: substitution
+            EditType::SUBSTITUTION => {
+                i -= 1;
+                start -= 1;
+            }
+
+            // Up: deletion
+            EditType::DELETION => {
+                i -= 1;
+            }
+
+            // Left: insertion
+            EditType::INSERTION => {
+                start -= 1;
+            }
+        }
+    }
+
+    ApproximateMatch {
+        start,
+        end,
+        distance: best_distance,
+        matched_string: text_array[start..end].iter().collect()
+    }
+}
+
+// ---------------------------------
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -400,5 +531,142 @@ mod tests {
         let c = "cuts";
 
         assert!(edit_distance(a, c) <= edit_distance(a, b) + edit_distance(b, c));
+    }
+
+    #[test]
+    fn exact_match() {
+        let result = approximate_match("hello", "hello");
+
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "hello");
+    }
+
+    #[test]
+    fn exact_match_inside_text() {
+        let result = approximate_match("hello", "xxx hello yyy");
+
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "hello");
+    }
+
+    #[test]
+    fn one_substitution() {
+        let result = approximate_match("hello", "xxx hella yyy");
+
+        assert_eq!(result.distance, 1);
+        assert_eq!(result.matched_string, "hella");
+    }
+
+    #[test]
+    fn one_insertion() {
+        let result = approximate_match("hello", "xxx helllo yyy");
+
+        assert_eq!(result.distance, 1);
+        assert_eq!(result.matched_string, "helllo");
+    }
+
+    #[test]
+    fn one_deletion() {
+        let result = approximate_match("hello", "xxx helo yyy");
+
+        assert_eq!(result.distance, 1);
+        assert_eq!(result.matched_string, "helo");
+    }
+
+    #[test]
+    fn completely_different_string() {
+        let result = approximate_match("abc", "xyz");
+
+        assert_eq!(result.distance, 3);
+        assert_eq!(result.matched_string, "xyz");
+    }
+
+    #[test]
+    fn chooses_best_substring() {
+        let result = approximate_match("hello", "this is something hello something else",
+        );
+
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "hello");
+    }
+
+    #[test]
+    fn best_match_is_not_entire_text() {
+        let result = approximate_match("cat", "xxxxxxxxcatxxxxxxxx",
+        );
+
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "cat");
+    }
+
+    #[test]
+    fn approximate_match_result() {
+        let result = approximate_match("kitten", "xxx sitten yyy",
+        );
+
+        assert_eq!(result.distance, 1);
+        assert_eq!(result.matched_string, "sitten");
+    }
+
+    #[test]
+    fn match_at_start() {
+        let result = approximate_match("hello", "hello world",
+        );
+
+        assert_eq!(result.start, 0);
+        assert_eq!(result.end, 5);
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "hello");
+    }
+
+    #[test]
+    fn match_at_end() {
+        let result = approximate_match("world", "hello world",
+        );
+
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "world");
+    }
+
+    #[test]
+    fn empty_pattern() {
+        let result = approximate_match("", "hello");
+
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "");
+    }
+
+    #[test]
+    fn empty_text() {
+        let result = approximate_match("hello", "");
+
+        assert_eq!(result.distance, 5);
+        assert_eq!(result.matched_string, "");
+    }
+
+    #[test]
+    fn both_empty() {
+        let result = approximate_match("", "");
+
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "");
+    }
+
+    #[test]
+    fn unicode() {
+        let result = approximate_match("hello", "xxx héllo yyy",
+        );
+
+        assert_eq!(result.distance, 1);
+        assert_eq!(result.matched_string, "héllo");
+    }
+
+    #[test]
+    fn emoji() {
+        let result = approximate_match("hello", "😀 hello 😀",
+        );
+
+        assert_eq!(result.distance, 0);
+        assert_eq!(result.matched_string, "hello");
     }
 }
