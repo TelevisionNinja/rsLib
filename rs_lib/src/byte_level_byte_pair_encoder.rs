@@ -26,14 +26,18 @@ impl ByteLevelBytePairEncoder {
 
     fn merge_pair(&self, input: &[Token], pair: (Token, Token), merge_token: Token) -> Vec<Token> {
         let mut out = Vec::with_capacity(input.len());
+        let mut i = 0;
 
-        for input_pair in input.windows(2) {
-            if input_pair[0] == pair.0 && input_pair[1] == pair.1 {
+        while i < input.len() {
+            if i + 1 < input.len() && input[i] == pair.0 && input[i + 1] == pair.1 {
                 out.push(merge_token);
+                i += 1;
             }
             else {
-                out.push(input_pair[0]);
+                out.push(input[i]);
             }
+
+            i += 1;
         }
 
         out
