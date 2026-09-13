@@ -15,15 +15,48 @@ pub struct TokenSpan {
     pub end: usize // exclusive
 }
 
-const NEXT_TOKEN: Token = 256;
+const EIGHT_BIT_MAX: Token = 256;
+const SEVEN_BIT_MAX: u8 = 128;
 
 impl ByteLevelBytePairEncoder {
     pub fn new() -> Self {
         Self {
             encode_map: HashMap::new(),
             decode_map: HashMap::new(),
-            next_token: NEXT_TOKEN
+            next_token: EIGHT_BIT_MAX
         }
+    }
+
+    fn pre_tokenize(bytes: &[u8]) -> Vec<(usize, usize)> {
+        let mut spans = Vec::new();
+        let mut i = 0;
+
+        while i < bytes.len() {
+            let start = i;
+
+            if bytes[i].is_ascii_whitespace() { // whitespace
+                while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                    i += 1;
+                }
+
+                // attach whitespace to following text
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] >= SEVEN_BIT_MAX) {
+                    i += 1;
+                }
+            }
+            else if bytes[i].is_ascii_alphanumeric() || bytes[i] >= SEVEN_BIT_MAX { // text
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] >= SEVEN_BIT_MAX) {
+                    i += 1;
+                }
+            }
+            else { // symbols
+                i += 1;
+            }
+
+            spans.push((start, i));
+        }
+
+        spans
     }
 
     fn merge_pair(&self, input: &[Token], pair: (Token, Token), merge_token: Token) -> Vec<Token> {
@@ -46,14 +79,23 @@ impl ByteLevelBytePairEncoder {
     }
 
     pub fn build_vocab(&mut self, samples: &[Vec<u8>], num_merges: usize) {
-        let mut corpus: Vec<Vec<Token>> = samples
-            .iter()
-            .map(|s| s
-                .iter()
-                .map(|b| *b as Token)
-                .collect()
-            )
-            .collect();
+        let mut corpus: Vec<Vec<Token>> = Vec::new();
+
+        for sample in samples {
+            let spans = Self::pre_tokenize(sample);
+
+            for &(start, end) in &spans {
+                let mut sequence = Vec::with_capacity(end - start);
+
+                for &byte in &sample[start..end] {
+                    sequence.push(byte as Token);
+                }
+
+                if !sequence.is_empty() {
+                    corpus.push(sequence);
+                }
+            }
+        }
 
         for _ in 0..num_merges {
             let mut pair_counts: HashMap<(Token, Token), usize> = HashMap::new();
@@ -87,7 +129,7 @@ impl ByteLevelBytePairEncoder {
         }
     }
 
-    pub fn encode(&self, input: &[u8]) -> Vec<Token> {
+    fn encode_piece(&self, input: &[u8]) -> Vec<Token> {
         let mut tokens: Vec<Token> = input
             .iter()
             .map(|b| *b as Token)
@@ -122,6 +164,21 @@ impl ByteLevelBytePairEncoder {
         tokens
     }
 
+    pub fn encode(&self, input: &[u8]) -> Vec<Token> {
+        let spans = Self::pre_tokenize(input);
+        let mut tokens = Vec::new();
+
+        for &(start, end) in &spans {
+            let piece = self.encode_piece(&input[start..end]);
+
+            for token in piece {
+                tokens.push(token);
+            }
+        }
+
+        tokens
+    }
+
     pub fn decode_recursive(&self, tokens: &[Token]) -> Vec<u8> {
         let mut out: Vec<u8> = Vec::new();
 
@@ -133,7 +190,7 @@ impl ByteLevelBytePairEncoder {
     }
 
     fn expand_recursive(&self, token: Token, out: &mut Vec<u8>) {
-        if token < NEXT_TOKEN {
+        if token < EIGHT_BIT_MAX {
             out.push(token as u8);
         }
         else {
@@ -151,7 +208,7 @@ impl ByteLevelBytePairEncoder {
             stack.push(token);
 
             while let Some(token) = stack.pop() {
-                if token < NEXT_TOKEN {
+                if token < EIGHT_BIT_MAX {
                     out.push(token as u8);
                 }
                 else {
@@ -167,7 +224,7 @@ impl ByteLevelBytePairEncoder {
         out
     }
 
-    pub fn encode_with_spans(&self, bytes: &[u8]) -> Vec<TokenSpan> {
+    fn encode_piece_with_spans(&self, bytes: &[u8]) -> Vec<TokenSpan> {
         let mut token_spans: Vec<TokenSpan> = bytes
             .iter()
             .enumerate()
@@ -212,10 +269,33 @@ impl ByteLevelBytePairEncoder {
         token_spans
     }
 
-    pub fn visualize<'a>(&self, input: &'a str) -> Vec<&'a str> {
+    pub fn encode_with_spans(&self, bytes: &[u8]) -> Vec<TokenSpan> {
+        let spans = Self::pre_tokenize(bytes);
+        let mut tokens = Vec::new();
+
+        for &(start, end) in &spans {
+            let piece = self.encode_piece_with_spans(&bytes[start..end]);
+
+            for mut token in piece {
+                token.start += start;
+                token.end += start;
+
+                tokens.push(token);
+            }
+        }
+
+        tokens
+    }
+
+    pub fn visualize(&self, input: &str) -> Vec<String> {
         self.encode_with_spans(input.as_bytes())
             .into_iter()
-            .map(|span| &input[span.start..span.end])
+            .map(|span| {
+                String::from_utf8_lossy(
+                    &input.as_bytes()[span.start..span.end]
+                )
+                .into_owned()
+            })
             .collect()
     }
 }
@@ -404,7 +484,7 @@ mod tests {
         let text = "mississippi";
 
         for piece in bpe.visualize(text) {
-            assert!(text.contains(piece));
+            assert!(text.contains(&piece));
         }
     }
 
@@ -440,5 +520,237 @@ mod tests {
         let decoded = bpe.decode(&tokens);
 
         assert_eq!(decoded, input);
+    }
+
+    #[test]
+    fn pre_tokenize_basic_sentence() {
+        let input = b"hello world!";
+        let spans = ByteLevelBytePairEncoder::pre_tokenize(input);
+        let pieces: Vec<&[u8]> = spans
+            .iter()
+            .map(|&(start, end)| &input[start..end])
+            .collect();
+
+        assert_eq!(pieces, vec![
+                b"hello".as_ref(),
+                b" world".as_ref(),
+                b"!".as_ref()
+            ]
+        );
+    }
+
+    #[test]
+    fn pre_tokenize_multiple_words() {
+        let input = b"the quick brown fox";
+        let spans = ByteLevelBytePairEncoder::pre_tokenize(input);
+        let pieces: Vec<&[u8]> = spans
+            .iter()
+            .map(|&(start, end)| &input[start..end])
+            .collect();
+
+        assert_eq!(pieces, vec![
+                b"the".as_ref(),
+                b" quick".as_ref(),
+                b" brown".as_ref(),
+                b" fox".as_ref()
+            ]
+        );
+    }
+
+    #[test]
+    fn pre_tokenize_punctuation() {
+        let input = b"hello, world!";
+        let spans = ByteLevelBytePairEncoder::pre_tokenize(input);
+        let pieces: Vec<&[u8]> = spans
+            .iter()
+            .map(|&(start, end)| &input[start..end])
+            .collect();
+
+        assert_eq!(pieces, vec![
+                b"hello".as_ref(),
+                b",".as_ref(),
+                b" world".as_ref(),
+                b"!".as_ref()
+            ]
+        );
+    }
+
+    #[test]
+    fn pre_tokenize_leading_whitespace() {
+        let input = b" hello";
+        let spans = ByteLevelBytePairEncoder::pre_tokenize(input);
+        let pieces: Vec<&[u8]> = spans
+            .iter()
+            .map(|&(start, end)| &input[start..end])
+            .collect();
+
+        assert_eq!(pieces, vec![
+                b" hello".as_ref()
+            ]
+        );
+    }
+
+    #[test]
+    fn pre_tokenize_multiple_spaces() {
+        let input = b"hello   world";
+        let spans = ByteLevelBytePairEncoder::pre_tokenize(input);
+        let pieces: Vec<&[u8]> = spans
+            .iter()
+            .map(|&(start, end)| &input[start..end])
+            .collect();
+
+        assert_eq!(pieces, vec![
+                b"hello".as_ref(),
+                b"   world".as_ref()
+            ]
+        );
+    }
+
+    #[test]
+    fn pre_tokenize_newline() {
+        let input = b"hello\nworld";
+        let spans = ByteLevelBytePairEncoder::pre_tokenize(input);
+        let pieces: Vec<&[u8]> = spans
+            .iter()
+            .map(|&(start, end)| &input[start..end])
+            .collect();
+
+        assert_eq!(pieces, vec![
+                b"hello".as_ref(),
+                b"\nworld".as_ref()
+            ]
+        );
+    }
+
+    #[test]
+    fn merge_pair_does_not_drop_last_token() {
+        let encoder = ByteLevelBytePairEncoder::new();
+        let input = vec![
+            1,
+            2,
+            3,
+            4
+        ];
+        let result =
+            encoder.merge_pair(
+                &input,
+                (2, 3),
+                256
+            );
+
+        assert_eq!(result, vec![1, 256, 4]);
+    }
+
+    #[test]
+    fn merge_pair_at_end() {
+        let encoder = ByteLevelBytePairEncoder::new();
+        let input = vec![
+            1,
+            2,
+            3
+        ];
+        let result = encoder.merge_pair(
+            &input,
+            (2, 3),
+            256
+        );
+
+        assert_eq!(result, vec![1, 256]);
+    }
+
+    #[test]
+    fn build_vocab_learns_common_pair() {
+        let mut encoder = ByteLevelBytePairEncoder::new();
+        let samples = vec![
+            b"abab".to_vec(),
+            b"abab".to_vec(),
+            b"abab".to_vec()
+        ];
+
+        encoder.build_vocab(&samples, 1);
+
+        assert_eq!(
+            encoder.encode_map.get(&(b'a' as Token, b'b' as Token)),
+            Some(&256)
+        );
+
+        assert_eq!(
+            encoder.decode_map.get(&256),
+            Some(&(b'a' as Token, b'b' as Token))
+        );
+    }
+
+    #[test]
+    fn visualize_preserves_text() {
+        let mut encoder = ByteLevelBytePairEncoder::new();
+        let samples = vec![
+            b"hello world".to_vec(),
+            b"hello world".to_vec(),
+            b"hello world".to_vec()
+        ];
+
+        encoder.build_vocab(&samples, 100);
+
+        let pieces = encoder.visualize("hello world");
+        let reconstructed: String = pieces.iter().cloned().collect();
+
+        assert_eq!(reconstructed, "hello world");
+    }
+
+    #[test]
+    fn visualize_has_space_with_following_word() {
+        let mut encoder = ByteLevelBytePairEncoder::new();
+        let samples = vec![
+            b"hello world".to_vec(),
+            b"hello world".to_vec(),
+            b"hello world".to_vec()
+        ];
+
+        encoder.build_vocab(&samples, 100);
+
+        let pieces = encoder.visualize("hello world");
+
+        assert!(pieces
+            .iter()
+            .any(|piece| {
+                piece.starts_with(' ')
+            })
+        );
+    }
+
+    #[test]
+    fn encode_decode() {
+        let mut encoder = ByteLevelBytePairEncoder::new();
+        let samples = vec![
+            b"hello world".to_vec(),
+            b"the quick brown fox".to_vec(),
+            b"hello there".to_vec()
+        ];
+
+        encoder.build_vocab(&samples, 100);
+
+        let input = b"hello world! the quick fox";
+        let tokens = encoder.encode(input);
+        let decoded = encoder.decode(&tokens);
+
+        assert_eq!(decoded, input);
+    }
+
+    #[test]
+    fn recursive_and_non_recursive_decode_match() {
+        let mut encoder = ByteLevelBytePairEncoder::new();
+        let samples = vec![
+            b"hello world".to_vec(),
+            b"hello world".to_vec(),
+            b"hello world".to_vec()
+        ];
+
+        encoder.build_vocab(&samples, 100);
+
+        let tokens = encoder.encode(b"hello world");
+        let recursive = encoder.decode_recursive(&tokens);
+        let non_recursive = encoder.decode(&tokens);
+
+        assert_eq!(recursive, non_recursive);
     }
 }
