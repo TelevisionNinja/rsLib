@@ -15,12 +15,14 @@ pub struct TokenSpan {
     pub end: usize // exclusive
 }
 
+const NEXT_TOKEN: Token = 256;
+
 impl ByteLevelBytePairEncoder {
     pub fn new() -> Self {
         Self {
             encode_map: HashMap::new(),
             decode_map: HashMap::new(),
-            next_token: 256
+            next_token: NEXT_TOKEN
         }
     }
 
@@ -131,7 +133,7 @@ impl ByteLevelBytePairEncoder {
     }
 
     fn expand_recursive(&self, token: Token, out: &mut Vec<u8>) {
-        if token < 256 {
+        if token < NEXT_TOKEN {
             out.push(token as u8);
         }
         else {
@@ -149,7 +151,7 @@ impl ByteLevelBytePairEncoder {
             stack.push(token);
 
             while let Some(token) = stack.pop() {
-                if token < 256 {
+                if token < NEXT_TOKEN {
                     out.push(token as u8);
                 }
                 else {
