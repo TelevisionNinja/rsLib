@@ -114,10 +114,12 @@ pub mod youtube {
     pub fn short_to_video(url: &str) -> String {
         if is_youtube_url(url) {
             let path = "shorts/";
-            let index = url.find(path);
+            let left_index = super::find(url, "/", "https://".len());
 
-            if index.is_some() {
-                return url.replace(path, "watch?v=");
+            if left_index.is_some() {
+                if url[left_index.unwrap() + 1..].starts_with(path) {
+                    return url.replacen(path, "watch?v=", 1);
+                }
             }
         }
 
