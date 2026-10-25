@@ -113,12 +113,22 @@ pub mod youtube {
 
     pub fn short_to_video(url: &str) -> String {
         if is_youtube_url(url) {
-            let path = "shorts/";
-            let left_index = super::find(url, "/", "https://".len());
+            let url_scheme = "https://";
+            let left_index_result = super::find(url, "/", url_scheme.len());
 
-            if left_index.is_some() {
-                if url[left_index.unwrap() + 1..].starts_with(path) {
-                    return url.replacen(path, "watch?v=", 1);
+            if left_index_result.is_some() {
+                let path = "shorts/";
+                let left_index = left_index_result.unwrap() + 1;
+
+                if url[left_index..].starts_with(path) {
+                    let replacement = "watch?v=";
+
+                    let mut result = String::with_capacity(url.len() - path.len() + replacement.len());
+                    result.push_str(&url[..left_index]);
+                    result.push_str(replacement);
+                    result.push_str(&url[left_index + path.len()..]);
+
+                    return result;
                 }
             }
         }
