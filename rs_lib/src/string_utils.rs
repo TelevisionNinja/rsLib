@@ -72,9 +72,8 @@ pub fn word_n_grams(array: Vec<&str>, n: usize) -> HashSet<String> {
         return set;
     }
 
-    for i in 0..=array.len() - n {
-        let gram: String = array[i..i + n].join(" ");
-        set.insert(gram);
+    for window in array.windows(n) {
+        set.insert(window.join(" "));
     }
 
     set
@@ -88,9 +87,8 @@ pub fn char_n_grams(s: &str, n: usize) -> HashSet<String> {
         return set;
     }
 
-    for i in 0..=chars.len() - n {
-        let gram: String = chars[i..i + n].iter().collect();
-        set.insert(gram);
+    for window in chars.windows(n) {
+        set.insert(window.iter().collect());
     }
 
     set
