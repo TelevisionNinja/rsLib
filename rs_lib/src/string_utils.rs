@@ -110,7 +110,7 @@ pub mod youtube {
 
     pub fn remove_tracking_parameters(url: &str) -> String {
         if is_youtube_url(url) {
-            return super::url_parameter_filter(url, vec!["si", "pp"], true);
+            return super::url_parameter_filter(url, vec!["si", "pp", "is"], true);
         }
 
         url.to_string()
