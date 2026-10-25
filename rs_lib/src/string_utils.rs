@@ -19,32 +19,50 @@ pub fn rfind(string: &str, substring: &str, index: usize) -> Option<usize> {
 pub fn url_parameter_filter(url:&str, parameters_vec: Vec<&str>, is_blacklist: bool) -> String {
     // domain part
 
-    let url_string = url.to_string();
-    let first_split = url_string.split_once("?");
+    let first_split = url.split_once("?");
 
     if first_split.is_none() {
-        return url_string;
+        return url.to_string();
     }
 
-    let first_split_parts = first_split.unwrap();
-    let first_chunk = first_split_parts.0;
-    let second_chunk = first_split_parts.1;
-    let mut result = String::new();
-    result.push_str(first_chunk);
+    let domain_and_query = first_split.unwrap();
+    let domain_part = domain_and_query.0;
+    let query_part = domain_and_query.1;
+    let mut result = String::with_capacity(url.len());
+    result.push_str(domain_part);
     let parameters: HashSet<&str> = HashSet::from_iter(parameters_vec);
 
     //---------------------
     // parameter part
 
-    let parameter_iterator = second_chunk.split("&");
-    let filtered_parameters = parameter_iterator.filter(|parameter| is_blacklist ^ parameters.contains(parameter.split("=").next().unwrap()));
-    let remaining_parameters = filtered_parameters.collect::<Vec<&str>>().join("&");
+    let parameter_iterator = query_part.split("&");
+    let mut filtered_parameters = parameter_iterator.filter(
+        |parameter| {
+            let current_query_key = parameter
+                .split_once("=")
+                .map_or(
+                    *parameter,
+                    |(query_key, _)|
+                        query_key
+                );
 
-    if !remaining_parameters.is_empty() {
-        result.push_str(&("?".to_owned() + &remaining_parameters));
+            is_blacklist ^ parameters.contains(current_query_key)
+        }
+    );
+
+    let first_parameter = filtered_parameters.next();
+
+    if first_parameter.is_some() {
+        result.push_str("?");
+        result.push_str(first_parameter.unwrap());
+
+        for parameter in filtered_parameters {
+            result.push_str("&");
+            result.push_str(parameter);
+        }
     }
 
-    result.to_string()
+    result
 }
 
 pub fn word_n_grams(array: Vec<&str>, n: usize) -> HashSet<String> {
@@ -383,6 +401,11 @@ mod tests {
 
         assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-", vec!["v"], false));
         assert_eq!("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&pp_EkAu2o2eUgp4SZV-", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-", vec!["v"], true));
+
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-&a", vec!["v"], false));
+        assert_eq!("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&pp_EkAu2o2eUgp4SZV-&a", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-&a", vec!["v"], true));
+        assert_eq!("https://www.youtube.com/watch?v=HCE_lFUMXNg", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-&a=", vec!["v"], false));
+        assert_eq!("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&pp_EkAu2o2eUgp4SZV-&a=", url_parameter_filter("https://www.youtube.com/watch?si EkAu2o2eUgp4SZV-&v=HCE_lFUMXNg&pp_EkAu2o2eUgp4SZV-&a=", vec!["v"], true));
     }
 
     #[test]
